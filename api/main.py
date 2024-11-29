@@ -1,9 +1,10 @@
 import logging
-import requests
 import re
 from fastapi import FastAPI, HTTPException, Request, responses, templating
 from model.artist import Artist
 from service.itunes import search_artist
+import requests
+import os
 
 """
 This is the main entry point for the application.
@@ -39,9 +40,7 @@ async def home(request: Request):
 def get_artist(name: str):
     if match := re.search(r"([A-Za-z]{2,20})[^A-Za-z]*([A-Za-z]{0,20})", name.strip().lower()):
         artist_name = " ".join(match.groups())
-        # should we pass in the limit in the querystring?
         artist = search_artist(artist_name, 3)
-        # print(artist)
         return artist
     else:
         raise HTTPException(
@@ -60,14 +59,16 @@ async def get_lyrics(artist_name: str, song_title: str, api_key: str):
         raise HTTPException(status_code=400, detail="Invalid artist name or song title")
 
     lyrics = fetch_lyrics(sanitized_artist, sanitized_song, api_key)
-
-
+    if lyrics:
+        return {"artist": sanitized_artist, "song": sanitized_song, "lyrics": lyrics}
+    else:
+        raise HTTPException(status_code=404, detail="Lyrics not found")
 
 
 def fetch_lyrics(artist_name, song_title, api_key):
-    base_url = "https://api.musixmatch.com/ws/1.1/"
-    method = "matcher.lyrics.get"
+    base_url = os.getenv('MUSIXMATCH_API_BASE_URL', 'https://api.musixmatch.com/ws/1.1/')
 
+    method = "matcher.lyrics.get"
     params = {
         "q_artist": artist_name,
         "q_track": song_title,
@@ -75,20 +76,27 @@ def fetch_lyrics(artist_name, song_title, api_key):
     }
 
     try:
-        response = requests.get(base_url + method, params=params)
+        response = requests.get(base_url + method, params=params, timeout=10)
         response.raise_for_status()
-
         data = response.json()
-        lyrics = data.get('message', {}).get('body', {}).get('lyrics', {}).get('lyrics_body')
+        
+        # Log the response to check the structure
+        logging.info(f"API response data: {data}")
 
-        if lyrics:
-            return lyrics
+        if isinstance(data, list):
+            logging.error("Unexpected list response from the API")
+            return None
+
+        status_code = data.get('message', {}).get('header', {}).get('status_code')
+        if status_code == 200:
+            return data.get('message', {}).get('body', {}).get('lyrics', {}).get('lyrics_body')
         else:
-            return "Lyrics not found."
-
+            logging.error(f"Failed to fetch lyrics: {status_code}")
+            return None
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching lyrics: {e}")
-        return "Error fetching lyrics."
+        logging.error(f"API request failed: {e}")
+        return None
+
 
 
 
