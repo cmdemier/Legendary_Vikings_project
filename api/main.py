@@ -1,4 +1,5 @@
 import logging
+import requests
 import re
 from fastapi import FastAPI, HTTPException, Request, responses, templating
 from model.artist import Artist
@@ -45,6 +46,51 @@ def get_artist(name: str):
     else:
         raise HTTPException(
             status_code=400, detail=f"Invalid artist name: {name}")
+
+# API route to get lyrics for a song
+@app.get("/lyrics/{artist_name}/{song_title}")
+async def get_lyrics(artist_name: str, song_title: str, api_key: str):
+    if not artist_name or not song_title:
+        raise HTTPException(status_code=400, detail="Artist name and song title are required")
+
+    sanitized_artist = re.sub(r'[^\w\s-]', '', artist_name).strip()
+    sanitized_song = re.sub(r'[^\w\s-]', '', song_title).strip()
+
+    if not sanitized_artist or not sanitized_song:
+        raise HTTPException(status_code=400, detail="Invalid artist name or song title")
+
+    lyrics = fetch_lyrics(sanitized_artist, sanitized_song, api_key)
+
+
+
+
+def fetch_lyrics(artist_name, song_title, api_key):
+    base_url = "https://api.musixmatch.com/ws/1.1/"
+    method = "matcher.lyrics.get"
+
+    params = {
+        "q_artist": artist_name,
+        "q_track": song_title,
+        "apikey": api_key
+    }
+
+    try:
+        response = requests.get(base_url + method, params=params)
+        response.raise_for_status()
+
+        data = response.json()
+        lyrics = data.get('message', {}).get('body', {}).get('lyrics', {}).get('lyrics_body')
+
+        if lyrics:
+            return lyrics
+        else:
+            return "Lyrics not found."
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching lyrics: {e}")
+        return "Error fetching lyrics."
+
+
 
 # Here we can add more API routes for other functionality, like:
 # - API route to get a list of albums for a genre
