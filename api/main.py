@@ -6,6 +6,8 @@ from service.itunes import search_artist
 from PIL import Image
 import requests
 from io import BytesIO
+import os
+
 
 """
 This is the main entry point for the application.
