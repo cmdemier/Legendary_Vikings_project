@@ -3,6 +3,7 @@ import re
 from fastapi import FastAPI, HTTPException, Request, responses, templating
 from model.artist import Artist
 from service.itunes import search_artist
+import requests
 
 """
 This is the main entry point for the application.
@@ -50,3 +51,45 @@ def get_artist(name: str):
 # - API route to get a list of albums for a genre
 # - API route to get a list of albums for a year
 # - API route to get a list of albums for a decade
+
+def fetch_album_data(artist_name, album_name):
+    base_url = 'https://itunes.apple.com/search'
+    params = {
+        'term': f'{artist_name} {album_name}',
+        'media': 'music',
+        'entity': 'album',
+        'limit': 1
+    }
+    response = requests.get(base_url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if data['resultCount'] > 0:
+            return data['results'][0]
+    return None
+
+from PIL import Image
+import requests
+from io import BytesIO
+
+def display_album_artwork(artwork_url):
+    response = requests.get(artwork_url)
+    if response.status_code == 200:
+        img_data = response.content
+        img = Image.open(BytesIO(img_data))
+        img.show()
+
+def main():
+    artist_name = input("Enter the artist's name: ")
+    album_name = input("Enter the album's name: ")
+    album_data = fetch_album_data(artist_name, album_name)
+    if album_data:
+        artwork_url = album_data.get('artworkUrl100')
+        if artwork_url:
+            display_album_artwork(artwork_url)
+        else:
+            print("Artwork not found.")
+    else:
+        print("Album not found.")
+
+if __name__ == '__main__':
+    main()
