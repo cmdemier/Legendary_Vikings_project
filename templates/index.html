@@ -240,12 +240,26 @@
     const data = await response.json();
 
     if (response.ok && data.resultCount > 0) {
-      const albums = data.results.map((album) => ({
-        title: album.collectionName,
-        image_url: album.artworkUrl100,
-        tracks: [], // iTunes API doesn't directly provide tracks in this endpoint
-        artistName: album.artistName,
-      }));
+      const albums = await Promise.all(
+        data.results.map(async (album) => {
+          // Fetch tracks for each album
+          const tracksResponse = await fetch(
+            `${baseUrl}?term=${encodeURIComponent(album.collectionName)}&entity=song&limit=5`
+          );
+          const tracksData = await tracksResponse.json();
+          const tracks = tracksData.results.map((track) => ({
+            trackName: track.trackName,
+            previewUrl: track.previewUrl,
+          }));
+
+          return {
+            title: album.collectionName,
+            image_url: album.artworkUrl100,
+            tracks: tracks,
+            artistName: album.artistName,
+          };
+        })
+      );
       displayAlbums({ name: artistName, albums });
       artistInput.value = "";
     } else {
@@ -263,6 +277,62 @@
 
 
 function displayAlbums(data) {
+  const albumsContainer = document.getElementById("albums");
+  albumsContainer.innerHTML = ""; // Clear any existing content
+
+  if (data.albums.length === 0) {
+    albumsContainer.innerHTML = "<p>No albums found for this artist.</p>";
+    return;
+  }
+
+  data.albums.forEach((album) => {
+    const albumElement = document.createElement("div");
+    albumElement.classList.add("album");
+
+    // Create album element with larger artwork and smaller titles
+    albumElement.innerHTML = `
+      <div style="display: flex; align-items: center;">
+        <img src="${album.image_url.replace("100x100", "600x600")}" alt="Album Cover" style="width: 150px; height: 150px; border-radius: 8px; margin-right: 15px;">
+        <div>
+          <h2 style="font-size: 16px; margin: 0; color: #333;">${album.title}</h2>
+          <p style="font-size: 12px; color: #777;">${album.artistName}</p>
+        </div>
+      </div>
+      ${album.tracks.length > 0 ? renderTracks(album.tracks) : ""}
+    `;
+
+    albumsContainer.appendChild(albumElement);
+  });
+}
+
+// Helper function to render tracks with audio previews
+function renderTracks(tracks) {
+  return `
+    <div style="margin-top: 10px;">
+      <h3 style="font-size: 14px; color: #555;">Tracks:</h3>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        ${tracks
+          .map(
+            (track) => `
+            <li style="display: flex; align-items: center; margin-bottom: 10px;">
+              <span style="flex: 1; font-size: 14px; color: #333;">${track.trackName}</span>
+              ${
+                track.previewUrl
+                  ? `<audio controls style="height: 20px; margin-left: 10px;">
+                      <source src="${track.previewUrl}" type="audio/mpeg">
+                      Your browser does not support the audio element.
+                    </audio>`
+                  : ""
+              }
+            </li>
+          `
+          )
+          .join("")}
+      </ul>
+    </div>
+  `;
+}
+
   const albumsContainer = document.getElementById("albums");
   albumsContainer.innerHTML = ""; // Clear any existing content
 
