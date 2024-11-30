@@ -33,12 +33,12 @@
         color: #333333;
       }
 
-      .search-box {
+      .search-box, .lyrics-box {
         display: flex;
         margin-bottom: 20px;
       }
 
-      .search-box input {
+      .search-box input, .lyrics-box input {
         width: calc(100% - 60px);
         padding: 10px;
         border: 1px solid #cccccc;
@@ -46,7 +46,7 @@
         outline: none;
       }
 
-      .search-box button {
+      .search-box button, .lyrics-box button {
         padding: 10px;
         background-color: #007bff;
         color: white;
@@ -56,18 +56,18 @@
         transition: background-color 0.3s ease;
       }
 
-      .search-box button:hover {
+      .search-box button:hover, .lyrics-box button:hover {
         background-color: #0056b3;
       }
 
-      .albums {
+      .albums, .lyrics {
         overflow-y: auto;
         flex-grow: 1;
         text-align: left;
         margin-top: 20px;
       }
 
-      .album {
+      .album, .lyric {
         background-color: #f9f9f9;
         padding: 15px;
         border-radius: 8px;
@@ -87,13 +87,13 @@
         overflow: hidden;
       }
 
-      .album-info h2 {
+      .album-info h2, .lyric-info h2 {
         font-size: 18px;
         margin: 0 0 5px 0;
         color: #333333;
       }
 
-      .album-info p {
+      .album-info p, .lyric-info p {
         font-size: 14px;
         margin: 0 0 10px 0;
         color: #777777;
@@ -178,12 +178,22 @@
       <div class="albums" id="albums">
         <!-- Album entries will be inserted here dynamically -->
       </div>
+
+      <div class="lyrics-box">
+        <input type="text" id="song-title" placeholder="Enter song title" />
+        <button id="fetch-lyrics">Get Lyrics</button>
+      </div>
+
+      <div class="lyrics" id="lyrics">
+        <!-- Lyrics will be inserted here dynamically -->
+      </div>
     </div>
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const artistInput = document.getElementById("artist-name")
-        const searchButton = document.querySelector("button")
+        const searchButton = document.querySelector(".search-box button")
+        const lyricsButton = document.getElementById("fetch-lyrics")
 
         searchButton.addEventListener("click", () => {
           searchAlbums()
@@ -196,12 +206,16 @@
           }
         })
 
+        lyricsButton.addEventListener("click", () => {
+          fetchLyrics()
+        })
+
         artistInput.focus()
       })
 
       async function searchAlbums() {
         const artistInput = document.getElementById("artist-name")
-        const searchButton = document.querySelector("button")
+        const searchButton = document.querySelector(".search-box button")
 
         const artistName = artistInput?.value.trim()
         if (!artistName) {
@@ -310,6 +324,65 @@
 
         return Object.values(discs)
       }
-    </script>
-  </body>
-</html>
+
+      async function fetchLyrics() {
+        const artistInput = document.getElementById("artist-name");
+        const songInput = document.getElementById("song-title");
+        const lyricsButton = document.getElementById("fetch-lyrics");
+      
+        const artistName = artistInput.value.trim();
+        const songTitle = songInput.value.trim();
+        const apiKey = 'a41cae85-10ba-4296-b7c4-e66490c6bbb7'; // Replace with your actual API key
+      
+        if (!artistName || !songTitle) {
+          alert("Please enter both artist name and song title.");
+          return;
+        }
+      
+        try {
+          lyricsButton.disabled = true;
+          songInput.disabled = true;
+          artistInput.disabled = true;
+          const response = await fetch(
+            `/lyrics/${encodeURIComponent(artistName)}/${encodeURIComponent(songTitle)}?api_key=${apiKey}`
+          );
+          const data = await response.json();
+          if (response.ok) {
+            displayLyrics(data.message.body.lyrics); // Assuming the lyrics data is nested within 'message.body.lyrics'
+          } else {
+            alert(data.message.header.status_code || "Oops! Something failed. Please try again.");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Could not retrieve lyrics. Please try again later.");
+        } finally {
+          lyricsButton.disabled = false;
+          songInput.disabled = false;
+          artistInput.disabled = false;
+        }
+      }
+  
+        function displayLyrics(data) {
+          const lyricsContainer = document.getElementById("lyrics")
+          lyricsContainer.innerHTML = "" // Clear any existing content
+  
+          if (!data.lyrics) {
+            lyricsContainer.innerHTML = "<p>Lyrics not found for this song.</p>"
+            return
+          }
+  
+          const lyricsElement = document.createElement("div")
+          lyricsElement.classList.add("lyric-info")
+  
+          lyricsElement.innerHTML = `
+            <h2>${data.song}</h2>
+            <p>${data.artist}</p>
+            <pre>${data.lyrics}</pre>
+          `
+  
+          lyricsContainer.appendChild(lyricsElement)
+        }
+      </script>
+    </body>
+  </html>
+  
