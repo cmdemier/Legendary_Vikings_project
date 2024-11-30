@@ -104,3 +104,5 @@ def fetch_lyrics(artist_name, song_title, api_key):
 # - API route to get a list of albums for a genre
 # - API route to get a list of albums for a year
 # - API route to get a list of albums for a decade
+
+
