@@ -3,8 +3,9 @@ import re
 from fastapi import FastAPI, HTTPException, Request, responses, templating
 from model.artist import Artist
 from service.itunes import search_artist
+from PIL import Image
 import requests
-import os
+from io import BytesIO
 
 """
 This is the main entry point for the application.
@@ -104,5 +105,3 @@ def fetch_lyrics(artist_name, song_title, api_key):
 # - API route to get a list of albums for a genre
 # - API route to get a list of albums for a year
 # - API route to get a list of albums for a decade
-
-
