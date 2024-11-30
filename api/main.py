@@ -3,6 +3,11 @@ import re
 from fastapi import FastAPI, HTTPException, Request, responses, templating
 from model.artist import Artist
 from service.itunes import search_artist
+from PIL import Image
+import requests
+from io import BytesIO
+import os
+
 
 """
 This is the main entry point for the application.
@@ -118,9 +123,6 @@ def fetch_album_data(artist_name, album_name):
             return data['results'][0]
     return None
 
-from PIL import Image
-import requests
-from io import BytesIO
 
 def display_album_artwork(artwork_url):
     response = requests.get(artwork_url)
